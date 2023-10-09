@@ -1,9 +1,9 @@
 const bcrypt = require('bcryptjs')
-
+const jwt = require('jsonwebtoken');
 const router = require('express').Router()
 const User = require('../users/users-model.js')
 
-const { BCRYPT_ROUNDS } = require('../../config')
+const { BCRYPT_ROUNDS, JWT_SECRET } = require('../../config')
 
 router.post('/register', (req, res, next) => {
   let user = req.body
@@ -25,13 +25,33 @@ router.post('/login', (req, res, next) => {
 
   User.findBy({ username })
     .then(([user]) => {
+      const token = buildToken(user);
       if (user && bcrypt.compareSync(password, user.password)) {
-        res.status(200).json({ message: `Welcome back ${user.username}...` })
+        res.status(200).json({ message: `Welcome back ${user.username}...`, token })
       } else {
         next({ status: 401, message: 'Invalid Credentials' })
       }
     })
     .catch(next)
 })
+
+function buildToken(user){
+  const payload = {
+    subject: user.id,
+    username: user.username,
+    role: user.role
+  }
+
+  const options = {
+    expiresIn: '1d',
+  }
+
+  return jwt.sign(payload, JWT_SECRET,options); 
+  /*
+  JWT_SECRET should not be pushed to Github/hardcoded -> can be faked if people know what the string is by attacks
+  allowing for them to create their own fake tokens
+  */
+
+}
 
 module.exports = router
